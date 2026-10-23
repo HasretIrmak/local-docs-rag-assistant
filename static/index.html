@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Asistanı — Claude Style Web UI</title>
+    <!-- Google Fonts & Font Awesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- SOL YAN MENÜ (SIDEBAR) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-icon"><i class="fa-solid fa-brain"></i></div>
+                    <div class="brand-text">
+                        <span class="brand-title">RAG Asistanı</span>
+                        <span class="brand-version">v16 Web UI</span>
+                    </div>
+                </div>
+                <button id="btn-new-chat" class="btn-new-chat" title="Yeni Sohbet Başlat">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Yeni Sohbet</span>
+                </button>
+            </div>
+
+            <!-- ARAMA KUTULU DÖKÜMAN SEÇİCİ KART -->
+            <div class="doc-selector-box">
+                <label><i class="fa-solid fa-file-pdf"></i> Aktif Döküman:</label>
+                <button id="btn-open-doc-modal" class="btn-doc-trigger">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span id="selected-doc-text">Döküman Seçin...</span>
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                </button>
+            </div>
+
+            <!-- SOHBET GEÇMİŞİ LİSTESİ -->
+            <div class="history-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Geçmiş Sohbetler</span>
+                </div>
+                <div id="session-list" class="session-list">
+                    <!-- JS Tarafından Yüklenecek -->
+                </div>
+            </div>
+
+            <!-- YAN MENÜ ALT BİLGİ -->
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <span class="status-dot online"></span>
+                    <span class="status-text">intfloat/multilingual-e5-small</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ANA ÇALIŞMA ALANI (MAIN CONTENT) -->
+        <main class="main-content">
+            <!-- ÜST KONTROL ÇUBUĞU (HEADER) -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button id="toggle-sidebar" class="btn-icon" title="Menüyü Gizle/Göster">
+                        <i class="fa-solid fa-bars-staggered"></i>
+                    </button>
+                    <div class="active-doc-info">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span id="active-doc-name">Lütfen bir belge seçin</span>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <!-- ÖZEL ŞIK MODEL SEÇİCİ (CUSTOM DROPDOWN - BROWSER STYLES OVERRIDDEN) -->
+                    <div class="custom-model-wrapper">
+                        <button id="btn-model-dropdown" class="btn-model-trigger">
+                            <i class="fa-solid fa-microchip model-icon"></i>
+                            <span id="selected-model-text">Qwen 2.6 / 3.6 27B Instruct</span>
+                            <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                        </button>
+                        
+                        <div id="panel-model-dropdown" class="model-dropdown-panel hidden">
+                            <!-- JS Tarafından Render Edilecek -->
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- SOHBET MESAJ ALANI (CANVAS) -->
+            <div id="chat-messages" class="chat-messages">
+                <!-- KARŞILAMA VE BAŞLANGIÇ EKRANI -->
+                <div id="welcome-screen" class="welcome-screen">
+                    <div class="welcome-icon"><i class="fa-solid fa-sparkles"></i></div>
+                    <h2>RAG Asistanı'na Hoş Geldiniz</h2>
+                    <p>Lütfen sol taraftan bir döküman seçin ve hemen soru sormaya başlayın.</p>
+                    <div class="feature-pills">
+                        <div class="pill"><i class="fa-solid fa-bolt"></i> ~4x Hızlı E5-Small Vector Search</div>
+                        <div class="pill"><i class="fa-solid fa-shield-halved"></i> %100 Yerel Veri Gizliliği</div>
+                        <div class="pill"><i class="fa-solid fa-database"></i> Kalıcı Sohbet Geçmişi</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GİRDİ ALANI (INPUT CONTAINER) -->
+            <div class="input-container">
+                <div class="input-box">
+                    <textarea id="user-input" placeholder="Seçilen belge hakkında bir soru sorun veya '/web <sorgu>' yazın..." rows="1"></textarea>
+                    
+                    <div class="input-actions">
+                        <button id="btn-web-toggle" class="btn-toggle" title="Canlı Dış Web Araması Modu">
+                            <i class="fa-solid fa-globe"></i>
+                            <span>Web Araması</span>
+                        </button>
+                        <button id="btn-send" class="btn-send" title="Gönder">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-footnote">
+                    <span>RAG v16 • HTTPS AES-256 Secured • Verileriniz bilgisayarınızdan dışarı çıkarılmaz.</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- DÖKÜMAN ARAMA MODALİ (SEARCHABLE DOCUMENT MODAL) -->
+    <div id="modal-doc-search" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>Döküman Ara & Seç</span>
+                </div>
+                <button id="btn-close-doc-modal" class="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="modal-search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="input-search-doc" placeholder="Döküman adı veya klasör ara (örn: KPSS, Yazılım, PDF)..." autocomplete="off" />
+            </div>
+
+            <div id="doc-modal-list" class="doc-modal-list">
+                <!-- JS Tarafından Kartlar Listelenecek -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

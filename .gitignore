@@ -1,0 +1,23 @@
+# Secrets
+.groq_key
+.env
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Runtime data
+chat_history.db
+*.db
+*.sqlite3
+vectordb_cache/
+
+# Misc
+.vscode/
+.idea/
+.DS_Store
+*.zip
