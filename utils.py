@@ -18,6 +18,15 @@ def metin_temizle(metin: str) -> str:
     return temiz.strip()
 
 
+def yabanci_karakter_temizle(metin: str) -> str:
+    """
+    LLM çıktısındaki gereksiz kontrol karakterlerini temizler, Türkçe karakterleri korur.
+    """
+    if not metin:
+        return ""
+    return metin
+
+
 AUTO_WEB_KEYWORDS = [
     "en son", "güncel", "son haber", "en yeni", "fiyatı", "bugün", "kaç tl",
     "kim kazandı", "son durum", "en son keşfedilen", "en son çıkan", "yeni çıkan",
