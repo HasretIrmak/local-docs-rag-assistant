@@ -1,5 +1,6 @@
 from typing import List, Tuple, Generator, Dict, Any
 from langchain_core.documents import Document
+from config import GROQ_MODEL, MODEL_CHAIN, MODEL_DESCRIPTIONS, STOP_WORDS, DEBUG_MODE
 
 try:
     from groq import Groq
@@ -7,7 +8,6 @@ try:
 except ImportError:
     GROQ_SDK_OK = False
 
-from config import GROQ_MODEL, HIGH_QUALITY_MODELS, MODEL_DESCRIPTIONS, STOP_WORDS, DEBUG_MODE
 from utils import yabanci_karakter_temizle
 
 
@@ -32,35 +32,25 @@ class GroqLLMClient:
             self.model_name = model_name
 
     def _aktif_modelleri_kesfet(self):
+        """Ask Groq which models are live and keep only those in our chain."""
         if self.groq_client is None:
             return
         try:
-            res = self.groq_client.models.list()
-            if res and res.data:
-                canli_ids = [m.id for m in res.data]
-                tercih_edilen = [m for m in HIGH_QUALITY_MODELS if m in canli_ids]
-                diger_kaliteli = [
-                    m for m in canli_ids 
-                    if any(k in m.lower() for k in ["qwen", "27b", "32b", "deepseek", "mixtral", "70b", "8b"])
-                ]
-                
-                birlesik = []
-                for m in [self.model_name] + tercih_edilen + diger_kaliteli + canli_ids:
-                    if m not in birlesik and m in canli_ids and not any(bad in m.lower() for bad in ["10b", "11b", "12b", "13b", "14b", "15b", "16b", "17b", "18b", "allam"]):
-                        birlesik.append(m)
-                
-                self.active_models = birlesik
+            live_ids = {m.id for m in self.groq_client.models.list().data}
         except Exception as e:
             if DEBUG_MODE:
                 print(f"⚠️ Aktif model keşif hatası: {e}")
-            self.active_models = HIGH_QUALITY_MODELS
+            self.active_models = list(MODEL_CHAIN)  # cannot verify: try the configured chain
+            return
+        self.active_models = [m for m in MODEL_CHAIN if m in live_ids]
+        if DEBUG_MODE:
+            missing = [m for m in MODEL_CHAIN if m not in live_ids]
+            if missing:
+                print(f"⚠️ Şu an Groq'ta bulunmayan modeller: {missing}")
 
     def _model_listesi_getir(self) -> List[str]:
-        gecerli_modeller = [m for m in HIGH_QUALITY_MODELS if not any(bad in m.lower() for bad in ["10b", "11b", "12b", "13b", "14b", "15b", "16b", "17b", "18b", "allam"])]
-        
-        if self.model_name in gecerli_modeller:
-            return [self.model_name] + [m for m in gecerli_modeller if m != self.model_name]
-        return gecerli_modeller
+        pool = self.active_models or list(MODEL_CHAIN)
+        return [self.model_name] + [m for m in pool if m != self.model_name]    
 
     def invoke_stream_generator(self, system_prompt: str, user_prompt: str) -> Generator[Dict[str, Any], None, None]:
         """
@@ -121,7 +111,7 @@ class GroqLLMClient:
                 if DEBUG_MODE:
                     print(f"⚠️ Model {m} çağrısı başarısız ({e}), sonraki modele geçiliyor...")
                 if idx == len(denecek_modeller) - 1:
-                    yield {"type": "text", "content": f"\n❌ Tüm modeller çağrılırken hata oluştu. Son hata ({m}): {e}"}
+                    yield {"type": "text", "content": f"\n❌ Tüm modeller başarısız oldu. Son hata ({m}): {e}\nRAG_GROQ_MODEL ve RAG_FALLBACK_MODELS değişkenlerini Groq'ta şu an aktif modellerle güncelle (bkz. README)."}
                     return
                 continue
 
